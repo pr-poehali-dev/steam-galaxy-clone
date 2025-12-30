@@ -108,6 +108,16 @@ export default function Index() {
   const [newFrameName, setNewFrameName] = useState('');
   const [newFramePrice, setNewFramePrice] = useState('');
   const [newFrameBorderStyle, setNewFrameBorderStyle] = useState('4px solid #9b87f5');
+  const [viewingUserId, setViewingUserId] = useState<string | null>(null);
+  const [showPublishDialog, setShowPublishDialog] = useState(false);
+  const [gameSubmissionForm, setGameSubmissionForm] = useState({
+    title: '',
+    description: '',
+    theme: '',
+    ageRating: '',
+    price: '',
+    contactEmail: ''
+  });
 
   useEffect(() => {
     const savedUsers = localStorage.getItem('galaxyUsers');
@@ -121,7 +131,7 @@ export default function Index() {
       const adminUser: User = {
         id: '1',
         email: 'suradaniil74@gmail.com',
-        username: 'Admin',
+        username: '@Bazuka',
         password: 'Shura1234321',
         balance: 5000,
         level: 1,
@@ -178,7 +188,14 @@ export default function Index() {
     return 'bg-purple-500';
   };
 
-  const isAdmin = currentUser?.email === 'suradaniil74@gmail.com';
+  const isAdmin = currentUser?.username === '@Bazuka';
+
+  const validateUsername = (username: string): boolean => {
+    if (!username.startsWith('@')) return false;
+    const usernameWithoutAt = username.slice(1);
+    if (usernameWithoutAt.length === 0) return false;
+    return /^[a-zA-Z]+$/.test(usernameWithoutAt);
+  };
 
   const handleAuth = () => {
     if (!email || !password) {
@@ -210,11 +227,19 @@ export default function Index() {
       toast.success('Добро пожаловать в Galaxy!');
     } else {
       if (!username) {
-        toast.error('Введите имя пользователя');
+        toast.error('Введите username');
+        return;
+      }
+      if (!validateUsername(username)) {
+        toast.error('Username должен начинаться с @ и содержать только английские буквы');
         return;
       }
       if (allUsers.find(u => u.email === email)) {
         toast.error('Аккаунт с таким email уже существует');
+        return;
+      }
+      if (allUsers.find(u => u.username.toLowerCase() === username.toLowerCase())) {
+        toast.error('Такой username уже занят');
         return;
       }
       const newUser: User = {
@@ -313,6 +338,14 @@ export default function Index() {
 
   const handleUpdateProfile = () => {
     if (!currentUser || !newUsername.trim()) return;
+    if (!validateUsername(newUsername)) {
+      toast.error('Username должен начинаться с @ и содержать только английские буквы');
+      return;
+    }
+    if (allUsers.find(u => u.username.toLowerCase() === newUsername.toLowerCase() && u.id !== currentUser.id)) {
+      toast.error('Такой username уже занят');
+      return;
+    }
     setCurrentUser({
       ...currentUser,
       username: newUsername
@@ -392,7 +425,8 @@ export default function Index() {
 
   const filteredUsers = allUsers.filter(u => 
     u.id !== currentUser?.id && 
-    u.username.toLowerCase().includes(searchQuery.toLowerCase())
+    (u.username.toLowerCase().includes(searchQuery.toLowerCase()) || 
+     u.email.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
   const sortedFilteredUsers = [...filteredUsers].sort((a, b) => {
@@ -402,8 +436,43 @@ export default function Index() {
   });
 
   const adminFilteredUsers = allUsers.filter(u => 
-    u.username.toLowerCase().includes(adminSearchQuery.toLowerCase())
+    u.username.toLowerCase().includes(adminSearchQuery.toLowerCase()) ||
+    u.email.toLowerCase().includes(adminSearchQuery.toLowerCase())
   );
+
+  const handleSubmitGame = () => {
+    if (!currentUser) return;
+    if (!gameSubmissionForm.title || !gameSubmissionForm.description || 
+        !gameSubmissionForm.theme || !gameSubmissionForm.ageRating || 
+        !gameSubmissionForm.price || !gameSubmissionForm.contactEmail) {
+      toast.error('Заполните все поля');
+      return;
+    }
+    const newSubmission: GameSubmission = {
+      id: Date.now().toString(),
+      title: gameSubmissionForm.title,
+      description: gameSubmissionForm.description,
+      theme: gameSubmissionForm.theme,
+      ageRating: gameSubmissionForm.ageRating,
+      price: parseInt(gameSubmissionForm.price),
+      contactEmail: gameSubmissionForm.contactEmail,
+      submittedBy: currentUser.id,
+      status: 'pending'
+    };
+    setGameSubmissions([...gameSubmissions, newSubmission]);
+    setShowPublishDialog(false);
+    setGameSubmissionForm({
+      title: '',
+      description: '',
+      theme: '',
+      ageRating: '',
+      price: '',
+      contactEmail: ''
+    });
+    toast.success('Игра отправлена на модерацию!');
+  };
+
+  const viewingUser = viewingUserId ? allUsers.find(u => u.id === viewingUserId) : null;
 
   if (!currentUser) {
     return (
@@ -431,11 +500,19 @@ export default function Index() {
               <div className="space-y-2">
                 <Input
                   type="text"
-                  placeholder="Имя пользователя"
+                  placeholder="Username (@username)"
                   value={username}
-                  onChange={(e) => setUsername(e.target.value)}
+                  onChange={(e) => {
+                    let val = e.target.value;
+                    if (!val.startsWith('@') && val.length > 0) {
+                      val = '@' + val;
+                    }
+                    val = val.replace(/[^@a-zA-Z]/g, '');
+                    setUsername(val);
+                  }}
                   className="bg-[hsl(var(--dark-bg))] border-[hsl(var(--border))] focus:border-[hsl(var(--primary))] transition-all"
                 />
+                <p className="text-xs text-gray-500">Только английские буквы, без пробелов</p>
               </div>
             )}
             <div className="space-y-2">
@@ -502,7 +579,7 @@ export default function Index() {
               >
                 Рамки
               </Button>
-              {isAdmin && (
+              {isAdmin && currentUser.username === '@Bazuka' && (
                 <Button 
                   variant="ghost" 
                   onClick={() => setActiveTab('admin')}
@@ -541,10 +618,87 @@ export default function Index() {
           <div className="space-y-6 animate-fade-in">
             <div className="flex justify-between items-center">
               <h2 className="text-3xl font-bold">Популярные игры</h2>
-              <Button className="bg-gradient-to-r from-[hsl(var(--primary))] to-[hsl(var(--secondary))] neon-glow">
-                <Icon name="Upload" className="mr-2" size={18} />
-                Опубликовать игру
-              </Button>
+              <Dialog open={showPublishDialog} onOpenChange={setShowPublishDialog}>
+                <DialogTrigger asChild>
+                  <Button className="bg-gradient-to-r from-[hsl(var(--primary))] to-[hsl(var(--secondary))] neon-glow">
+                    <Icon name="Upload" className="mr-2" size={18} />
+                    Опубликовать игру
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="bg-[hsl(var(--dark-card))] max-w-2xl">
+                  <DialogHeader>
+                    <DialogTitle>Опубликовать игру</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <div>
+                      <Label>Название игры</Label>
+                      <Input
+                        value={gameSubmissionForm.title}
+                        onChange={(e) => setGameSubmissionForm({...gameSubmissionForm, title: e.target.value})}
+                        placeholder="Cyber Runner"
+                        className="bg-[hsl(var(--dark-bg))]"
+                      />
+                    </div>
+                    <div>
+                      <Label>Описание</Label>
+                      <Input
+                        value={gameSubmissionForm.description}
+                        onChange={(e) => setGameSubmissionForm({...gameSubmissionForm, description: e.target.value})}
+                        placeholder="Описание игры"
+                        className="bg-[hsl(var(--dark-bg))]"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label>Тематика</Label>
+                        <Input
+                          value={gameSubmissionForm.theme}
+                          onChange={(e) => setGameSubmissionForm({...gameSubmissionForm, theme: e.target.value})}
+                          placeholder="Экшен"
+                          className="bg-[hsl(var(--dark-bg))]"
+                        />
+                      </div>
+                      <div>
+                        <Label>Возрастной рейтинг</Label>
+                        <Input
+                          value={gameSubmissionForm.ageRating}
+                          onChange={(e) => setGameSubmissionForm({...gameSubmissionForm, ageRating: e.target.value})}
+                          placeholder="12+"
+                          className="bg-[hsl(var(--dark-bg))]"
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label>Цена (₽)</Label>
+                        <Input
+                          type="number"
+                          value={gameSubmissionForm.price}
+                          onChange={(e) => setGameSubmissionForm({...gameSubmissionForm, price: e.target.value})}
+                          placeholder="299"
+                          className="bg-[hsl(var(--dark-bg))]"
+                        />
+                      </div>
+                      <div>
+                        <Label>Контактный email</Label>
+                        <Input
+                          type="email"
+                          value={gameSubmissionForm.contactEmail}
+                          onChange={(e) => setGameSubmissionForm({...gameSubmissionForm, contactEmail: e.target.value})}
+                          placeholder="your@email.com"
+                          className="bg-[hsl(var(--dark-bg))]"
+                        />
+                      </div>
+                    </div>
+                    <Button 
+                      onClick={handleSubmitGame}
+                      className="w-full bg-gradient-to-r from-[hsl(var(--primary))] to-[hsl(var(--secondary))]"
+                    >
+                      Отправить на модерацию
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -661,7 +815,7 @@ export default function Index() {
             <div>
               <h2 className="text-2xl font-bold mb-4">Поиск друзей</h2>
               <Input
-                placeholder="Поиск пользователей..."
+                placeholder="Поиск по username или email..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="mb-4 bg-[hsl(var(--dark-bg))] border-[hsl(var(--border))]"
@@ -671,8 +825,8 @@ export default function Index() {
                   const userFrame = getUserFrame(user);
                   const isFriend = currentUser.friends.includes(user.id);
                   return (
-                    <Card key={user.id} className="bg-[hsl(var(--dark-card))] border-[hsl(var(--border))]">
-                      <CardHeader>
+                    <Card key={user.id} className="bg-[hsl(var(--dark-card))] border-[hsl(var(--border))] cursor-pointer hover:border-[hsl(var(--primary))] transition-all">
+                      <CardHeader onClick={() => setViewingUserId(user.id)}>
                         <div className="flex items-center gap-3">
                           <Avatar 
                             className="w-16 h-16"
@@ -680,7 +834,7 @@ export default function Index() {
                           >
                             <AvatarImage src={user.avatar} />
                             <AvatarFallback className="bg-gradient-to-br from-[hsl(var(--primary))] to-[hsl(var(--secondary))]">
-                              {user.username[0].toUpperCase()}
+                              {user.username[1]?.toUpperCase() || 'U'}
                             </AvatarFallback>
                           </Avatar>
                           <div className="flex-1">
@@ -727,8 +881,8 @@ export default function Index() {
                   {allUsers.filter(u => currentUser.friends.includes(u.id)).map((user) => {
                     const userFrame = getUserFrame(user);
                     return (
-                      <Card key={user.id} className="bg-[hsl(var(--dark-card))] border-[hsl(var(--border))]">
-                        <CardHeader>
+                      <Card key={user.id} className="bg-[hsl(var(--dark-card))] border-[hsl(var(--border))] cursor-pointer hover:border-[hsl(var(--primary))] transition-all">
+                        <CardHeader onClick={() => setViewingUserId(user.id)}>
                           <div className="flex items-center gap-3">
                             <Avatar 
                               className="w-16 h-16"
@@ -736,7 +890,7 @@ export default function Index() {
                             >
                               <AvatarImage src={user.avatar} />
                               <AvatarFallback className="bg-gradient-to-br from-[hsl(var(--primary))] to-[hsl(var(--secondary))]">
-                                {user.username[0].toUpperCase()}
+                                {user.username[1]?.toUpperCase() || 'U'}
                               </AvatarFallback>
                             </Avatar>
                             <div className="flex-1">
@@ -862,7 +1016,14 @@ export default function Index() {
                         <div className="flex gap-2 items-center">
                           <Input
                             value={newUsername}
-                            onChange={(e) => setNewUsername(e.target.value)}
+                            onChange={(e) => {
+                              let val = e.target.value;
+                              if (!val.startsWith('@') && val.length > 0) {
+                                val = '@' + val;
+                              }
+                              val = val.replace(/[^@a-zA-Z]/g, '');
+                              setNewUsername(val);
+                            }}
                             placeholder={currentUser.username}
                             className="bg-[hsl(var(--dark-bg))]"
                           />
@@ -938,6 +1099,70 @@ export default function Index() {
               </CardContent>
             </Card>
           </div>
+        )}
+
+        {viewingUser && (
+          <Dialog open={!!viewingUserId} onOpenChange={() => setViewingUserId(null)}>
+            <DialogContent className="bg-[hsl(var(--dark-card))] max-w-2xl">
+              <DialogHeader>
+                <DialogTitle>Профиль пользователя</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-6">
+                <div className="flex items-center gap-6">
+                  <Avatar 
+                    className="w-24 h-24"
+                    style={getUserFrame(viewingUser) ? { border: getUserFrame(viewingUser)!.borderStyle } : { border: '4px solid hsl(var(--primary))' }}
+                  >
+                    <AvatarImage src={viewingUser.avatar} />
+                    <AvatarFallback className="bg-gradient-to-br from-[hsl(var(--primary))] to-[hsl(var(--secondary))] text-2xl">
+                      {viewingUser.username[1]?.toUpperCase() || 'U'}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-2">
+                      <h2 className="text-3xl font-bold">{viewingUser.username}</h2>
+                      {viewingUser.isVerified && (
+                        <Icon name="CheckCircle" size={24} className="text-green-500" />
+                      )}
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-2">
+                        <div
+                          className={`w-12 h-12 rounded-full ${getLevelColor(
+                            viewingUser.level
+                          )} flex items-center justify-center font-bold text-lg border-2 border-white`}
+                        >
+                          {viewingUser.level}
+                        </div>
+                        <span className="text-sm text-gray-400">Уровень Galaxy</span>
+                      </div>
+                      <Badge className="bg-[hsl(var(--primary))]">
+                        {viewingUser.ownedGames.length} игр
+                      </Badge>
+                    </div>
+                  </div>
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold mb-4">Библиотека</h3>
+                  {viewingUser.ownedGames.length === 0 ? (
+                    <p className="text-gray-400">Библиотека пуста</p>
+                  ) : (
+                    <div className="grid grid-cols-3 gap-4">
+                      {mockGames
+                        .filter((game) => viewingUser.ownedGames.includes(game.id))
+                        .map((game) => (
+                          <Card key={game.id} className="bg-[hsl(var(--dark-bg))] border-[hsl(var(--border))]">
+                            <CardHeader className="p-3">
+                              <CardTitle className="text-sm">{game.title}</CardTitle>
+                            </CardHeader>
+                          </Card>
+                        ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
         )}
 
         {activeTab === 'admin' && isAdmin && (
