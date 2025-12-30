@@ -4,7 +4,6 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import Icon from '@/components/ui/icon';
 import { toast } from 'sonner';
 
@@ -66,6 +65,7 @@ export default function Index() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [username, setUsername] = useState('');
+  const [activeTab, setActiveTab] = useState<'store' | 'library' | 'profile'>('store');
 
   const getLevelColor = (level: number) => {
     if (level >= 1 && level <= 5) return 'bg-gray-400';
@@ -222,14 +222,26 @@ export default function Index() {
               Galaxy
             </h1>
             <div className="hidden md:flex gap-6">
-              <Button variant="ghost" className="text-gray-300 hover:text-white hover:bg-[hsl(var(--primary))]/20">
+              <Button 
+                variant="ghost" 
+                onClick={() => setActiveTab('store')}
+                className={`text-gray-300 hover:text-white hover:bg-[hsl(var(--primary))]/20 ${activeTab === 'store' ? 'bg-[hsl(var(--primary))]/20 text-white' : ''}`}
+              >
                 Магазин
               </Button>
-              <Button variant="ghost" className="text-gray-300 hover:text-white hover:bg-[hsl(var(--primary))]/20">
+              <Button 
+                variant="ghost" 
+                onClick={() => setActiveTab('library')}
+                className={`text-gray-300 hover:text-white hover:bg-[hsl(var(--primary))]/20 ${activeTab === 'library' ? 'bg-[hsl(var(--primary))]/20 text-white' : ''}`}
+              >
                 Библиотека
               </Button>
-              <Button variant="ghost" className="text-gray-300 hover:text-white hover:bg-[hsl(var(--primary))]/20">
-                Друзья
+              <Button 
+                variant="ghost" 
+                onClick={() => setActiveTab('profile')}
+                className={`text-gray-300 hover:text-white hover:bg-[hsl(var(--primary))]/20 ${activeTab === 'profile' ? 'bg-[hsl(var(--primary))]/20 text-white' : ''}`}
+              >
+                Профиль
               </Button>
             </div>
           </div>
@@ -246,7 +258,7 @@ export default function Index() {
             <Button
               variant="ghost"
               size="icon"
-              onClick={handleLogout}
+              onClick={() => setActiveTab('profile')}
               className="text-gray-400 hover:text-white"
             >
               <Icon name="User" size={24} />
@@ -256,23 +268,8 @@ export default function Index() {
       </nav>
 
       <main className="container mx-auto px-4 py-8">
-        <Tabs defaultValue="store" className="space-y-8">
-          <TabsList className="bg-[hsl(var(--dark-card))] border border-[hsl(var(--border))]">
-            <TabsTrigger value="store" className="data-[state=active]:bg-[hsl(var(--primary))]">
-              <Icon name="Store" className="mr-2" size={18} />
-              Магазин
-            </TabsTrigger>
-            <TabsTrigger value="library" className="data-[state=active]:bg-[hsl(var(--primary))]">
-              <Icon name="Library" className="mr-2" size={18} />
-              Библиотека
-            </TabsTrigger>
-            <TabsTrigger value="profile" className="data-[state=active]:bg-[hsl(var(--primary))]">
-              <Icon name="User" className="mr-2" size={18} />
-              Профиль
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="store" className="space-y-6">
+        {activeTab === 'store' && (
+          <div className="space-y-6 animate-fade-in">
             <div className="flex justify-between items-center">
               <h2 className="text-3xl font-bold">Популярные игры</h2>
               <Button className="bg-gradient-to-r from-[hsl(var(--primary))] to-[hsl(var(--secondary))] neon-glow">
@@ -339,9 +336,11 @@ export default function Index() {
                 </Card>
               ))}
             </div>
-          </TabsContent>
+          </div>
+        )}
 
-          <TabsContent value="library" className="space-y-6">
+        {activeTab === 'library' && (
+          <div className="space-y-6 animate-fade-in">
             <h2 className="text-3xl font-bold">Моя библиотека</h2>
             {currentUser.ownedGames.length === 0 ? (
               <Card className="border-2 border-dashed border-[hsl(var(--border))] bg-[hsl(var(--dark-card))]/50">
@@ -376,9 +375,11 @@ export default function Index() {
                   ))}
               </div>
             )}
-          </TabsContent>
+          </div>
+        )}
 
-          <TabsContent value="profile" className="space-y-6">
+        {activeTab === 'profile' && (
+          <div className="space-y-6 animate-fade-in">
             <Card className="border-2 border-[hsl(var(--primary))] bg-[hsl(var(--dark-card))] neon-glow">
               <CardHeader>
                 <div className="flex items-center gap-6">
@@ -447,8 +448,8 @@ export default function Index() {
                 </Button>
               </CardContent>
             </Card>
-          </TabsContent>
-        </Tabs>
+          </div>
+        )}
       </main>
     </div>
   );
