@@ -42,6 +42,18 @@ interface Frame {
   borderStyle: string;
 }
 
+interface GameSubmission {
+  id: string;
+  title: string;
+  description: string;
+  theme: string;
+  ageRating: string;
+  price: number;
+  contactEmail: string;
+  submittedBy: string;
+  status: 'pending' | 'approved' | 'rejected';
+}
+
 const mockGames: Game[] = [
   {
     id: '1',
@@ -82,20 +94,26 @@ export default function Index() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [allUsers, setAllUsers] = useState<User[]>([]);
   const [frames, setFrames] = useState<Frame[]>(defaultFrames);
+  const [gameSubmissions, setGameSubmissions] = useState<GameSubmission[]>([]);
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [username, setUsername] = useState('');
   const [activeTab, setActiveTab] = useState<'store' | 'library' | 'profile' | 'friends' | 'frames' | 'admin'>('store');
+  const [adminTab, setAdminTab] = useState<'users' | 'submissions' | 'frames'>('users');
   const [editingProfile, setEditingProfile] = useState(false);
   const [newUsername, setNewUsername] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [adminSearchQuery, setAdminSearchQuery] = useState('');
+  const [newFrameName, setNewFrameName] = useState('');
+  const [newFramePrice, setNewFramePrice] = useState('');
+  const [newFrameBorderStyle, setNewFrameBorderStyle] = useState('4px solid #9b87f5');
 
   useEffect(() => {
     const savedUsers = localStorage.getItem('galaxyUsers');
     const savedCurrentUser = localStorage.getItem('galaxyCurrentUser');
     const savedFrames = localStorage.getItem('galaxyFrames');
+    const savedSubmissions = localStorage.getItem('galaxySubmissions');
     
     if (savedUsers) {
       setAllUsers(JSON.parse(savedUsers));
@@ -124,6 +142,10 @@ export default function Index() {
     if (savedFrames) {
       setFrames(JSON.parse(savedFrames));
     }
+    
+    if (savedSubmissions) {
+      setGameSubmissions(JSON.parse(savedSubmissions));
+    }
   }, []);
 
   useEffect(() => {
@@ -144,6 +166,10 @@ export default function Index() {
   useEffect(() => {
     localStorage.setItem('galaxyFrames', JSON.stringify(frames));
   }, [frames]);
+
+  useEffect(() => {
+    localStorage.setItem('galaxySubmissions', JSON.stringify(gameSubmissions));
+  }, [gameSubmissions]);
 
   const getLevelColor = (level: number) => {
     if (level >= 1 && level <= 5) return 'bg-gray-400';
@@ -317,6 +343,38 @@ export default function Index() {
       setCurrentUser({...currentUser, balance: newBalance});
     }
     toast.success('Баланс обновлен');
+  };
+
+  const handleCreateFrame = () => {
+    if (!newFrameName || !newFramePrice) {
+      toast.error('Заполните все поля');
+      return;
+    }
+    const newFrame: Frame = {
+      id: `frame_${Date.now()}`,
+      name: newFrameName,
+      price: parseInt(newFramePrice),
+      borderStyle: newFrameBorderStyle
+    };
+    setFrames([...frames, newFrame]);
+    setNewFrameName('');
+    setNewFramePrice('');
+    setNewFrameBorderStyle('4px solid #9b87f5');
+    toast.success('Рамка создана!');
+  };
+
+  const handleApproveSubmission = (submissionId: string) => {
+    setGameSubmissions(prev => prev.map(s => 
+      s.id === submissionId ? {...s, status: 'approved'} : s
+    ));
+    toast.success('Игра одобрена!');
+  };
+
+  const handleRejectSubmission = (submissionId: string) => {
+    setGameSubmissions(prev => prev.map(s => 
+      s.id === submissionId ? {...s, status: 'rejected'} : s
+    ));
+    toast.error('Игра отклонена');
   };
 
   const handleLogout = () => {
@@ -885,14 +943,44 @@ export default function Index() {
         {activeTab === 'admin' && isAdmin && (
           <div className="space-y-6 animate-fade-in">
             <h2 className="text-3xl font-bold">Админ панель</h2>
-            <Input
-              placeholder="Поиск по имени пользователя..."
-              value={adminSearchQuery}
-              onChange={(e) => setAdminSearchQuery(e.target.value)}
-              className="bg-[hsl(var(--dark-bg))] border-[hsl(var(--border))]"
-            />
-            <div className="grid gap-4">
-              {adminFilteredUsers.map((user) => (
+            
+            <div className="flex gap-4 border-b border-[hsl(var(--border))]">
+              <Button
+                variant="ghost"
+                onClick={() => setAdminTab('users')}
+                className={`${adminTab === 'users' ? 'border-b-2 border-[hsl(var(--primary))] text-white' : 'text-gray-400'}`}
+              >
+                <Icon name="Users" className="mr-2" size={18} />
+                Пользователи
+              </Button>
+              <Button
+                variant="ghost"
+                onClick={() => setAdminTab('submissions')}
+                className={`${adminTab === 'submissions' ? 'border-b-2 border-[hsl(var(--primary))] text-white' : 'text-gray-400'}`}
+              >
+                <Icon name="FileText" className="mr-2" size={18} />
+                Заявки на игры
+              </Button>
+              <Button
+                variant="ghost"
+                onClick={() => setAdminTab('frames')}
+                className={`${adminTab === 'frames' ? 'border-b-2 border-[hsl(var(--primary))] text-white' : 'text-gray-400'}`}
+              >
+                <Icon name="Frame" className="mr-2" size={18} />
+                Управление рамками
+              </Button>
+            </div>
+
+            {adminTab === 'users' && (
+              <div className="space-y-4">
+                <Input
+                  placeholder="Поиск по имени пользователя..."
+                  value={adminSearchQuery}
+                  onChange={(e) => setAdminSearchQuery(e.target.value)}
+                  className="bg-[hsl(var(--dark-bg))] border-[hsl(var(--border))]"
+                />
+                <div className="grid gap-4">
+                  {adminFilteredUsers.map((user) => (
                 <Card key={user.id} className="bg-[hsl(var(--dark-card))] border-[hsl(var(--border))]">
                   <CardHeader>
                     <div className="flex items-center justify-between">
@@ -963,7 +1051,147 @@ export default function Index() {
                   </CardHeader>
                 </Card>
               ))}
-            </div>
+                </div>
+              </div>
+            )}
+
+            {adminTab === 'submissions' && (
+              <div className="space-y-4">
+                <h3 className="text-xl font-bold">Заявки на публикацию игр</h3>
+                {gameSubmissions.length === 0 ? (
+                  <Card className="bg-[hsl(var(--dark-card))] border-[hsl(var(--border))]">
+                    <CardContent className="py-16 text-center">
+                      <Icon name="Inbox" size={64} className="mx-auto text-gray-600 mb-4" />
+                      <p className="text-gray-400">Нет новых заявок</p>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <div className="grid gap-4">
+                    {gameSubmissions.filter(s => s.status === 'pending').map((submission) => (
+                      <Card key={submission.id} className="bg-[hsl(var(--dark-card))] border-[hsl(var(--border))]">
+                        <CardHeader>
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <CardTitle className="text-2xl mb-2">{submission.title}</CardTitle>
+                              <p className="text-gray-400 mb-4">{submission.description}</p>
+                              <div className="flex gap-4 text-sm">
+                                <div>
+                                  <span className="text-gray-500">Тематика:</span>
+                                  <Badge className="ml-2">{submission.theme}</Badge>
+                                </div>
+                                <div>
+                                  <span className="text-gray-500">Возраст:</span>
+                                  <Badge variant="outline" className="ml-2">{submission.ageRating}</Badge>
+                                </div>
+                                <div>
+                                  <span className="text-gray-500">Цена:</span>
+                                  <span className="ml-2 font-bold text-[hsl(var(--primary))]">{submission.price} ₽</span>
+                                </div>
+                              </div>
+                              <p className="text-sm text-gray-500 mt-2">Контакт: {submission.contactEmail}</p>
+                            </div>
+                            <div className="flex gap-2">
+                              <Button 
+                                onClick={() => handleApproveSubmission(submission.id)}
+                                className="bg-green-600 hover:bg-green-700"
+                              >
+                                <Icon name="Check" className="mr-2" size={18} />
+                                Одобрить
+                              </Button>
+                              <Button 
+                                onClick={() => handleRejectSubmission(submission.id)}
+                                variant="destructive"
+                              >
+                                <Icon name="X" className="mr-2" size={18} />
+                                Отклонить
+                              </Button>
+                            </div>
+                          </div>
+                        </CardHeader>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {adminTab === 'frames' && (
+              <div className="space-y-4">
+                <Card className="bg-[hsl(var(--dark-card))] border-[hsl(var(--border))]">
+                  <CardHeader>
+                    <CardTitle>Создать новую рамку</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-3 gap-4">
+                      <div>
+                        <Label>Название</Label>
+                        <Input
+                          value={newFrameName}
+                          onChange={(e) => setNewFrameName(e.target.value)}
+                          placeholder="Неоновая рамка"
+                          className="bg-[hsl(var(--dark-bg))]"
+                        />
+                      </div>
+                      <div>
+                        <Label>Цена (₽)</Label>
+                        <Input
+                          type="number"
+                          value={newFramePrice}
+                          onChange={(e) => setNewFramePrice(e.target.value)}
+                          placeholder="150"
+                          className="bg-[hsl(var(--dark-bg))]"
+                        />
+                      </div>
+                      <div>
+                        <Label>CSS стиль границы</Label>
+                        <Input
+                          value={newFrameBorderStyle}
+                          onChange={(e) => setNewFrameBorderStyle(e.target.value)}
+                          placeholder="4px solid #9b87f5"
+                          className="bg-[hsl(var(--dark-bg))]"
+                        />
+                      </div>
+                    </div>
+                    <div className="flex gap-4 items-center">
+                      <div>
+                        <Label>Предпросмотр:</Label>
+                        <div 
+                          className="w-24 h-24 rounded-full bg-gradient-to-br from-[hsl(var(--primary))] to-[hsl(var(--secondary))] mt-2"
+                          style={{ border: newFrameBorderStyle }}
+                        />
+                      </div>
+                      <Button 
+                        onClick={handleCreateFrame}
+                        className="bg-gradient-to-r from-[hsl(var(--primary))] to-[hsl(var(--secondary))]"
+                      >
+                        <Icon name="Plus" className="mr-2" size={18} />
+                        Создать рамку
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <div>
+                  <h3 className="text-xl font-bold mb-4">Все рамки</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {frames.map((frame) => (
+                      <Card key={frame.id} className="bg-[hsl(var(--dark-card))] border-[hsl(var(--border))]">
+                        <CardHeader>
+                          <div className="flex justify-center mb-4">
+                            <div 
+                              className="w-24 h-24 rounded-full bg-gradient-to-br from-[hsl(var(--primary))] to-[hsl(var(--secondary))]"
+                              style={{ border: frame.borderStyle }}
+                            />
+                          </div>
+                          <CardTitle className="text-center">{frame.name}</CardTitle>
+                          <p className="text-center text-xl font-bold text-[hsl(var(--primary))]">{frame.price} ₽</p>
+                        </CardHeader>
+                      </Card>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </main>
